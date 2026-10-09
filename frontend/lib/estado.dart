@@ -35,6 +35,7 @@ class Estado {
       l.add(e);
     }
     favoritas.value = l;
+
     final p = await SharedPreferences.getInstance();
     await p.setStringList('favoritas', l.map((e) => '${e.id}|${e.nombre}').toList());
   }
@@ -43,21 +44,28 @@ class Estado {
     final l = [...formacionesSeguidas.value];
     final k = f.trim().toUpperCase();
     if (k.isEmpty) return;
+
     if (l.contains(k)) {
       l.remove(k);
     } else {
       l.add(k);
     }
+
     formacionesSeguidas.value = l;
     final p = await SharedPreferences.getInstance();
     await p.setStringList('formaciones', l);
   }
 
   Future<void> cargarEstaciones() async {
-    if (todas.isEmpty) {
-      print('[ViaLibre] cargando estaciones...');
+    if (todas.isNotEmpty) return;
+
+    print('[ViaLibre] cargando estaciones...');
+    try {
       todas = await ApiTrenes.estaciones();
       print('[ViaLibre] estaciones cargadas: ${todas.length}');
+    } catch (e) {
+      print('[ViaLibre] ERROR cargarEstaciones(): $e');
+      todas = [];
     }
   }
 
@@ -68,7 +76,7 @@ class Estado {
       await cargarEstaciones();
 
       if (todas.isEmpty) {
-        errorUbicacion = 'No se cargaron estaciones. Revisa tu conexión.';
+        errorUbicacion = 'No se cargaron estaciones. Revisa tu conexión o la API.';
         return;
       }
 
