@@ -55,30 +55,57 @@ class Estado {
   }
 
   Future<void> cargarEstaciones() async {
-    if (todas.isEmpty) todas = await ApiTrenes.estaciones();
+    if (todas.isEmpty) {
+      print('[ViaLibre] cargando estaciones...');
+      todas = await ApiTrenes.estaciones();
+      print('[ViaLibre] estaciones cargadas: ${todas.length}');
+    }
   }
 
   /// Pide permiso, obtiene ubicacion y calcula las estaciones mas cercanas.
   Future<void> actualizarCercanas() async {
     errorUbicacion = null;
-    await cargarEstaciones();
+    print('[ViaLibre] actualizarCercanas() start');
+
     try {
+      await cargarEstaciones();
+      print('[ViaLibre] total estaciones: ${todas.length}');
+
       var perm = await Geolocator.checkPermission();
+      print('[ViaLibre] permiso inicial: $perm');
+
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
+        print('[ViaLibre] permiso luego del request: $perm');
       }
+
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
         errorUbicacion = 'Sin permiso de ubicacion. Podes buscar tu estacion a mano.';
+        print('[ViaLibre] sin permiso de ubicacion');
         return;
       }
-      final pos = await Geolocator.getCurrentPosition();
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+
+      print('[ViaLibre] posicion: ${pos.latitude}, ${pos.longitude}');
+
       final lista = todas.toList();
       double d(Estacion e) =>
           Geolocator.distanceBetween(pos.latitude, pos.longitude, e.lat, e.lon);
+
       lista.sort((a, b) => d(a).compareTo(d(b)));
       cercanas = lista.take(8).toList();
       _dist = {for (final e in cercanas) e.id: d(e)};
-    } catch (e) {
+
+      print('[ViaLibre] cercanas cargadas: ${cercanas.length}');
+    } catch (e, st) {
+      print('[ViaLibre] ERROR actualizarCercanas(): $e');
+      print(st);
       errorUbicacion = 'No se pudo obtener la ubicacion.';
     }
   }
