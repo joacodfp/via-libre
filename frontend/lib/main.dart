@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
 
 void main() {
   runApp(const ViaLibreApp());
@@ -21,7 +24,6 @@ class ViaLibreApp extends StatelessWidget {
   }
 }
 
-// ---- NAVEGACIÓN INFERIOR (TABS) ----
 class NavegacionPrincipal extends StatefulWidget {
   const NavegacionPrincipal({super.key});
 
@@ -31,8 +33,6 @@ class NavegacionPrincipal extends StatefulWidget {
 
 class _NavegacionPrincipalState extends State<NavegacionPrincipal> {
   int _indiceActual = 0;
-
-  // Las tres pantallas de nuestra app
   final List<Widget> _pantallas = [
     const PantallaPasajero(),
     const PantallaFavoritos(),
@@ -58,40 +58,105 @@ class _NavegacionPrincipalState extends State<NavegacionPrincipal> {
   }
 }
 
-// ---- PANTALLA 1: PASAJERO DIARIO ----
-class PantallaPasajero extends StatelessWidget {
+// ---- PANTALLA 1: ARRIBOS EN VIVO ----
+class PantallaPasajero extends StatefulWidget {
   const PantallaPasajero({super.key});
+
+  @override
+  State<PantallaPasajero> createState() => _PantallaPasajeroState();
+}
+
+class _PantallaPasajeroState extends State<PantallaPasajero> {
+  List<dynamic> trenesEnVivo = [];
+  bool cargando = true;
+  Timer? temporizador;
+
+  @override
+  void initState() {
+    super.initState();
+    buscarTrenes();
+    // ¡Magia! Se actualiza solo cada 30 segundos
+    temporizador = Timer.periodic(const Duration(seconds: 30), (Timer t) => buscarTrenes());
+  }
+
+  @override
+  void dispose() {
+    temporizador?.cancel();
+    super.dispose();
+  }
+
+  Future<void> buscarTrenes() async {
+    try {
+      // 100 es el ID de ejemplo para una estación de la línea Roca. 
+      // Más adelante haremos el buscador de estaciones.
+      final url = Uri.parse('https://ariedro.dev/api-trenes/arribos/estacion/100');
+      final respuesta = await http.get(url);
+
+      if (respuesta.statusCode == 200) {
+        setState(() {
+          trenesEnVivo = json.decode(respuesta.body);
+          cargando = false;
+        });
+      }
+    } catch (e) {
+      // Si el celular no tiene internet, mostramos algo vacío para no romper la app
+      setState(() { cargando = false; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('📍 Estación más cercana', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: const Text('📍 Estación en Vivo', style: TextStyle(color: Colors.white, fontSize: 18)),
         backgroundColor: Colors.blue.shade900,
-        actions: [
-          IconButton(icon: const Icon(Icons.search, color: Colors.white), onPressed: () {}),
-        ],
       ),
-      body: Column(
+      body: cargando 
+        ? const Center(child: CircularProgressIndicator()) 
+        : Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             color: Colors.blue.shade50,
             child: const Row(
               children: [
-                Icon(Icons.location_on, color: Colors.blue),
+                Icon(Icons.wifi_tethering, color: Colors.blue),
                 SizedBox(width: 8),
-                Text('Lomas de Zamora (Detectado)', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('Conectado a la red de SOFSE', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
               ],
             ),
           ),
           Expanded(
-            child: ListView(
-              children: const [
-                TarjetaTren(destino: "Plaza Constitución", llegaEn: "2 min", estado: "A horario", colorEstado: Colors.green),
-                TarjetaTren(destino: "Ezeiza", llegaEn: "12 min", estado: "Demorado", colorEstado: Colors.red),
-                TarjetaTren(destino: "Alejandro Korn", llegaEn: "15 min", estado: "A horario", colorEstado: Colors.green),
-              ],
+            child: ListView.builder(
+              itemCount: trenesEnVivo.length,
+              itemBuilder: (context, index) {
+                final tren = trenesEnVivo[index];
+                
+                // SOFSE devuelve "minutos", "destino", "estado" y "nombreTren" (Servicio)
+                String destino = tren['destino'] ?? 'Desconocido';
+                String minutos = tren['minutos']?.toString() ?? '--';
+                String servicio = tren['nombreTren']?.toString() ?? 'N/A';
+                String estado = tren['estado'] ?? 'En viaje';
+                
+                bool estaDemorado = estado.toLowerCase().contains('demora');
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ListTile(
+                    leading: Icon(Icons.train, color: estaDemorado ? Colors.red : Colors.green, size: 40),
+                    title: Text(destino, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(estado, style: TextStyle(color: estaDemorado ? Colors.red : Colors.green)),
+                        const SizedBox(height: 4),
+                        Text('Servicio: $servicio', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                      ],
+                    ),
+                    trailing: Text('$minutos min', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -108,9 +173,7 @@ class PantallaFavoritos extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Mis Rutas', style: TextStyle(color: Colors.white)), backgroundColor: Colors.blue.shade900),
-      body: const Center(
-        child: Text('Acá guardaremos tus viajes de todos los días.', style: TextStyle(fontSize: 16, color: Colors.grey)),
-      ),
+      body: const Center(child: Text('Tus viajes de todos los días.', style: TextStyle(color: Colors.grey))),
     );
   }
 }
@@ -131,7 +194,7 @@ class PantallaSpotter extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Buscar material tractivo / rodante en servicio:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Buscar material tractivo / rodante:', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             TextField(
               decoration: InputDecoration(
@@ -143,40 +206,11 @@ class PantallaSpotter extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Alertas Activas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Próxima Fase: El cruce de datos', style: TextStyle(fontSize: 16, color: Colors.blue)),
             const SizedBox(height: 10),
-            ListTile(
-              tileColor: Colors.amber.shade50,
-              leading: const Icon(Icons.notifications_active, color: Colors.amber),
-              title: const Text('Locomotora A924'),
-              subtitle: const Text('Notificar cuando inicie servicio.'),
-              trailing: Switch(value: true, onChanged: (val){}),
-            ),
+            const Text('En la siguiente actualización construiremos nuestra propia base de datos (Backend) para asociar los "Servicios" reales que ahora sí estamos recibiendo con los números físicos de chapa de cada formación.'),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ---- WIDGET REUTILIZABLE: TARJETA DE TREN ----
-class TarjetaTren extends StatelessWidget {
-  final String destino;
-  final String llegaEn;
-  final String estado;
-  final Color colorEstado;
-
-  const TarjetaTren({super.key, required this.destino, required this.llegaEn, required this.estado, required this.colorEstado});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        leading: Icon(Icons.train, color: colorEstado, size: 40),
-        title: Text(destino, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(estado, style: TextStyle(color: colorEstado, fontWeight: FontWeight.bold)),
-        trailing: Text(llegaEn, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
   }
