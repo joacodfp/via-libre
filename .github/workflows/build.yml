@@ -22,6 +22,10 @@ jobs:
           cp frontend/pubspec.yaml app_generada/pubspec.yaml
           mkdir -p app_generada/lib
           cp frontend/lib/main.dart app_generada/lib/main.dart
+          
+          # TRUCO: El robot inyecta los permisos de GPS automáticamente
+          sed -i 's/<application/<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" \/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" \/>\n    <application/' app_generada/android/app/src/main/AndroidManifest.xml
+          
           cd app_generada
           flutter build apk --release
       - uses: actions/upload-artifact@v4
