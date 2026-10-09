@@ -3,7 +3,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 
-/// Estado global simple de la app (estaciones, ubicacion, favoritos, formaciones seguidas).
 class Estado {
   static final Estado i = Estado._();
   Estado._();
@@ -62,51 +61,55 @@ class Estado {
     }
   }
 
-  /// Pide permiso, obtiene ubicacion y calcula las estaciones mas cercanas.
   Future<void> actualizarCercanas() async {
     errorUbicacion = null;
-    print('[ViaLibre] actualizarCercanas() start');
 
     try {
       await cargarEstaciones();
-      print('[ViaLibre] total estaciones: ${todas.length}');
 
-      var perm = await Geolocator.checkPermission();
-      print('[ViaLibre] permiso inicial: $perm');
-
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-        print('[ViaLibre] permiso luego del request: $perm');
-      }
-
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        errorUbicacion = 'Sin permiso de ubicacion. Podes buscar tu estacion a mano.';
-        print('[ViaLibre] sin permiso de ubicacion');
+      if (todas.isEmpty) {
+        errorUbicacion = 'No se cargaron estaciones. Revisa tu conexión.';
         return;
       }
 
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 15),
-        ),
-      );
+      try {
+        var perm = await Geolocator.checkPermission();
+        print('[ViaLibre] permiso inicial: $perm');
 
-      print('[ViaLibre] posicion: ${pos.latitude}, ${pos.longitude}');
+        if (perm == LocationPermission.denied) {
+          perm = await Geolocator.requestPermission();
+          print('[ViaLibre] permiso luego del request: $perm');
+        }
 
-      final lista = todas.toList();
-      double d(Estacion e) =>
-          Geolocator.distanceBetween(pos.latitude, pos.longitude, e.lat, e.lon);
+        if (perm != LocationPermission.denied && perm != LocationPermission.deniedForever) {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+              timeLimit: Duration(seconds: 15),
+            ),
+          );
 
-      lista.sort((a, b) => d(a).compareTo(d(b)));
-      cercanas = lista.take(8).toList();
-      _dist = {for (final e in cercanas) e.id: d(e)};
+          final lista = todas.toList();
+          double d(Estacion e) =>
+              Geolocator.distanceBetween(pos.latitude, pos.longitude, e.lat, e.lon);
 
-      print('[ViaLibre] cercanas cargadas: ${cercanas.length}');
+          lista.sort((a, b) => d(a).compareTo(d(b)));
+          cercanas = lista.take(8).toList();
+          _dist = {for (final e in cercanas) e.id: d(e)};
+          return;
+        }
+
+        errorUbicacion = 'Sin permiso de ubicacion. Podes buscar tu estacion a mano.';
+      } catch (_) {
+        errorUbicacion = 'Sin ubicacion. Podes buscar manualmente.';
+      }
+
+      cercanas = todas.take(8).toList();
+      _dist = {};
     } catch (e, st) {
       print('[ViaLibre] ERROR actualizarCercanas(): $e');
       print(st);
-      errorUbicacion = 'No se pudo obtener la ubicacion.';
+      errorUbicacion = 'No se pudo cargar la lista de estaciones.';
     }
   }
 
