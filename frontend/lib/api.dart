@@ -98,21 +98,16 @@ class ApiTrenes {
     final url = '$kBase/infraestructura/estaciones';
     print('[ViaLibre] GET $url');
     try {
-      final r = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
-      print('[ViaLibre] estaciones status=${r.statusCode} body=${r.body.substring(0, 200)}');
-
-      if (r.statusCode != 200) throw Exception('Error ${r.statusCode}');
+      final r = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      print('[ViaLibre] status=${r.statusCode} body=${r.body.substring(0, 120)}');
+      if (r.statusCode != 200) throw Exception('Error HTTP ${r.statusCode}');
       final list = json.decode(r.body) as List;
       final vistos = <int>{};
       final out = <Estacion>[];
-
       for (final e in list) {
         final est = Estacion.fromJson(e as Map<String, dynamic>);
         if (est.lat != 0 && vistos.add(est.id)) out.add(est);
       }
-
       print('[ViaLibre] estaciones OK: ${out.length} cargadas');
       return out;
     } catch (e, st) {
@@ -127,16 +122,14 @@ class ApiTrenes {
     print('[ViaLibre] GET $url');
     try {
       final r = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      print('[ViaLibre] arribos status=${r.statusCode} body=${r.body.substring(0, 200)}');
-
-      if (r.statusCode != 200) throw Exception('Error ${r.statusCode}');
+      print('[ViaLibre] status=${r.statusCode} body=${r.body.substring(0, 120)}');
+      if (r.statusCode != 200) throw Exception('Error HTTP ${r.statusCode}');
       final data = json.decode(r.body) as Map<String, dynamic>;
       final res = (data['results'] as List?) ?? [];
       final items = res
           .map((e) => Arribo.fromJson(e as Map<String, dynamic>))
           .where((a) => a.servicio != 0)
           .toList();
-
       print('[ViaLibre] arribos OK: ${items.length} para estación $idEstacion');
       return items;
     } catch (e, st) {
