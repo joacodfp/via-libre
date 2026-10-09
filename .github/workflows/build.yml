@@ -8,8 +8,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -24,7 +24,7 @@ jobs:
           cp frontend/lib/main.dart app_generada/lib/main.dart
           cd app_generada
           flutter build apk --release
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: APK-ViaLibre
           path: app_generada/build/app/outputs/flutter-apk/app-release.apk
