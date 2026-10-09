@@ -13,73 +13,170 @@ class ViaLibreApp extends StatelessWidget {
       title: 'Vía Libre',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade900),
+        useMaterial3: true,
       ),
-      home: const PantallaPrincipal(),
+      home: const NavegacionPrincipal(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class PantallaPrincipal extends StatefulWidget {
-  const PantallaPrincipal({super.key});
+// ---- NAVEGACIÓN INFERIOR (TABS) ----
+class NavegacionPrincipal extends StatefulWidget {
+  const NavegacionPrincipal({super.key});
 
   @override
-  State<PantallaPrincipal> createState() => _PantallaPrincipalState();
+  State<NavegacionPrincipal> createState() => _NavegacionPrincipalState();
 }
 
-class _PantallaPrincipalState extends State<PantallaPrincipal> {
-  bool modoSpotter = false;
-  
-  // Datos simulados para probar que la app funciona visualmente
-  List<dynamic> trenes = [
-    {"destino": "Plaza Constitución", "llegada": "2 min", "demora": 0, "servicio": "3042", "chapa": "CSR 05"},
-    {"destino": "Ezeiza", "llegada": "15 min", "demora": 12, "servicio": "3046", "chapa": "Toshiba 18"}
+class _NavegacionPrincipalState extends State<NavegacionPrincipal> {
+  int _indiceActual = 0;
+
+  // Las tres pantallas de nuestra app
+  final List<Widget> _pantallas = [
+    const PantallaPasajero(),
+    const PantallaFavoritos(),
+    const PantallaSpotter(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('📍 Lomas de Zamora', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blue.shade900,
-        actions: [
-          Row(
-            children: [
-              const Icon(Icons.camera_alt, color: Colors.white, size: 18),
-              Switch(
-                value: modoSpotter,
-                activeColor: Colors.amber,
-                onChanged: (bool value) {
-                  setState(() { modoSpotter = value; });
-                },
-              ),
-            ],
-          )
+      body: _pantallas[_indiceActual],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _indiceActual,
+        onDestinationSelected: (int index) {
+          setState(() { _indiceActual = index; });
+        },
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.train), label: 'Arribos'),
+          NavigationDestination(icon: Icon(Icons.star), label: 'Favoritos'),
+          NavigationDestination(icon: Icon(Icons.radar), label: 'Spotter'),
         ],
       ),
-      body: ListView.builder(
-        itemCount: trenes.length,
-        itemBuilder: (context, index) {
-          final tren = trenes[index];
-          return Card(
-            margin: const EdgeInsets.all(8),
-            child: ListTile(
-              leading: Icon(Icons.train, color: tren['demora'] > 0 ? Colors.red : Colors.green, size: 40),
-              title: Text(tren['destino'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Llega en: ${tren['llegada']}'),
-                  if (modoSpotter) ...[
-                    const SizedBox(height: 5),
-                    Text('Servicio: ${tren['servicio']} | Equipo: ${tren['chapa']}', 
-                      style: const TextStyle(backgroundColor: Colors.amber, color: Colors.black, fontWeight: FontWeight.bold)),
-                  ]
-                ],
+    );
+  }
+}
+
+// ---- PANTALLA 1: PASAJERO DIARIO ----
+class PantallaPasajero extends StatelessWidget {
+  const PantallaPasajero({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('📍 Estación más cercana', style: TextStyle(color: Colors.white, fontSize: 18)),
+        backgroundColor: Colors.blue.shade900,
+        actions: [
+          IconButton(icon: const Icon(Icons.search, color: Colors.white), onPressed: () {}),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.blue.shade50,
+            child: const Row(
+              children: [
+                Icon(Icons.location_on, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('Lomas de Zamora (Detectado)', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              children: const [
+                TarjetaTren(destino: "Plaza Constitución", llegaEn: "2 min", estado: "A horario", colorEstado: Colors.green),
+                TarjetaTren(destino: "Ezeiza", llegaEn: "12 min", estado: "Demorado", colorEstado: Colors.red),
+                TarjetaTren(destino: "Alejandro Korn", llegaEn: "15 min", estado: "A horario", colorEstado: Colors.green),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---- PANTALLA 2: FAVORITOS ----
+class PantallaFavoritos extends StatelessWidget {
+  const PantallaFavoritos({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mis Rutas', style: TextStyle(color: Colors.white)), backgroundColor: Colors.blue.shade900),
+      body: const Center(
+        child: Text('Acá guardaremos tus viajes de todos los días.', style: TextStyle(fontSize: 16, color: Colors.grey)),
+      ),
+    );
+  }
+}
+
+// ---- PANTALLA 3: FERROAFICIONADOS (SPOTTER) ----
+class PantallaSpotter extends StatelessWidget {
+  const PantallaSpotter({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Radar de Formaciones', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.blue.shade900,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Buscar material tractivo / rodante en servicio:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Ej: CSR 05, GT22 A900...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                filled: true,
+                fillColor: Colors.grey.shade100,
               ),
             ),
-          );
-        },
+            const SizedBox(height: 20),
+            const Text('Alertas Activas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            ListTile(
+              tileColor: Colors.amber.shade50,
+              leading: const Icon(Icons.notifications_active, color: Colors.amber),
+              title: const Text('Locomotora A924'),
+              subtitle: const Text('Notificar cuando inicie servicio.'),
+              trailing: Switch(value: true, onChanged: (val){}),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---- WIDGET REUTILIZABLE: TARJETA DE TREN ----
+class TarjetaTren extends StatelessWidget {
+  final String destino;
+  final String llegaEn;
+  final String estado;
+  final Color colorEstado;
+
+  const TarjetaTren({super.key, required this.destino, required this.llegaEn, required this.estado, required this.colorEstado});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListTile(
+        leading: Icon(Icons.train, color: colorEstado, size: 40),
+        title: Text(destino, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(estado, style: TextStyle(color: colorEstado, fontWeight: FontWeight.bold)),
+        trailing: Text(llegaEn, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
   }
